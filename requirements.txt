@@ -1,0 +1,11 @@
+fastapi
+openai
+uvicorn
+pydantic
+pinecone
+azure-ai-inference==1.0.0b9
+azure-core==1.32.0
+azure-identity==1.19.0
+python-dotenv
+pypdf
+nltk
