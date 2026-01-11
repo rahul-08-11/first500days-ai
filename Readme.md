@@ -14,7 +14,7 @@ v0/ask -> Azure OpenAI(Decision Making - Function Calling?/General Query?) -> Ge
 
 
 ## Using Semantic Search with Pinecone (RAG)
-![alt text](image.png)
+<img width="510" height="657" alt="Screenshot From 2026-01-11 11-34-53" src="https://github.com/user-attachments/assets/5471ccb3-5952-48b9-8ee2-b71836b5e5ca" />
 
 
 ### flow:
@@ -100,10 +100,8 @@ docker push rag-ai-agent:latest
 
 5. create azure app service -> select container app -> no database -> connect to your public docker registrty -> keep rest at deault -> create app service
 
-![alt text](azureapp1.png)
-
-![alt text](azureapp2.png)
-
+<img width="906" height="763" alt="Screenshot From 2026-01-11 12-36-01" src="https://github.com/user-attachments/assets/d903ca1a-82fa-4790-8ebe-134b6bd46f96" />
+<img width="906" height="763" alt="Screenshot From 2026-01-11 12-32-36" src="https://github.com/user-attachments/assets/f1c3ac67-132f-4702-a59a-851a2ff2d061" />
 
 
 # APIs
@@ -118,6 +116,11 @@ Run the following CURL command to test the /ask endpoint:
 ```
 curl -X POST "https://domain/v0/ask" -H "Content-Type":"application/json" -d '{"question":"who is acmecloud?","session_id":"user123"}'    
 ```
+
+
+
+# Quickly view logs via Log streaming in Real-time.
+<img width="1913" height="167" alt="Screenshot From 2026-01-11 14-37-11" src="https://github.com/user-attachments/assets/9c95680c-6ef4-497e-9263-284c1b6ad4b3" />
 
 
 # Design Approach
@@ -153,8 +156,4 @@ used to allow the model to decide whether document retrieval is required or if a
 - Improve error handling and logging
 
 
-
-## 6. Quickly view logs via Log streaming in Real-time.
-
-
-Thank you for reading! If you have any questions or feedback, please don't hesitate to reach out.
+If you have any questions or feedback, please don't hesitate to reach out.
