@@ -7,7 +7,8 @@ import nltk
 nltk.download('punkt_tab')
 import logging
 logger = logging.getLogger(__name__)
-class RAGClient:
+
+class PineconeClient:
     INDEX_NAME = "dense-index"                       
     NAMESPACE = "acmecloud_documents"    
 
@@ -71,97 +72,31 @@ class RAGClient:
                 "metadata": {"source": "doc.pdf", "page": 3}
             }
             """
-            to_upsert = []
+            try:
+                to_upsert = []
 
-            for chunk in chunks:
-                vector = self.get_embedding(chunk["chunk_text"])
+                for chunk in chunks:
+                    id = str(uuid.uuid4())
+                    logger.info(f"Upserting chunk ID: {id}")
+                    vector = self.get_embedding(chunk["chunk_text"])
 
-                to_upsert.append({
-                    "id": chunk.get("id", str(uuid.uuid4())),
-                    "values": vector,
-                    "metadata": {
-                        "text": chunk["chunk_text"],        
-                        **chunk.get("metadata", {})
-                    }
-                })
-
-            self.index.upsert(
-                vectors=to_upsert,
-                namespace=self.NAMESPACE
-            )
-
-
-
-    def generate_chunks(self, max_chars: int = 1000) -> list[dict]:
-        """
-        Reads all PDF files in the '../documents' folder, extracts and cleans their text,
-        and splits the text into smaller chunks of a specified maximum character length.
-
-        Each chunk contains a portion of text that does not exceed `max_chars` and 
-        preserves sentence boundaries. Metadata is attached to each chunk to indicate
-        its source PDF file.
-
-        Parameters:
-        -----------
-        max_chars : int, optional (default=1000)
-            The maximum number of characters allowed in a single chunk. 
-            Sentences are grouped until this limit is reached, then a new chunk is created.
-
-        Returns:
-        --------
-        list of dict
-            A list of dictionaries, each representing a text chunk. Each dictionary has:
-            - 'chunk_text': str
-                The extracted text content of the chunk.
-            - 'metadata': dict
-                A dictionary containing metadata about the chunk, currently:
-                - 'source': str
-                    The filename of the PDF from which the chunk was extracted.
-        """
-        from pypdf import PdfReader
-        from nltk.tokenize import sent_tokenize
-
-        try:
-            documents_folder = "documents"
-            pdf_files = [f for f in os.listdir(f"{documents_folder}") if f.endswith(".pdf")]
-
-            chunks = []
-
-            for pdf_file in pdf_files:
-                pdf_path = os.path.join(f"{documents_folder}", pdf_file)
-                reader = PdfReader(pdf_path)
-
-                raw_text = ""
-                for page in reader.pages:
-                    raw_text += page.extract_text() + " "
-
-                clean_text = normalize_text(raw_text)
-                sentences = sent_tokenize(clean_text)
-                current_chunk = ""
-                for sentence in sentences:
-                    if len(current_chunk) + len(sentence) <= max_chars:
-                        current_chunk += " " + sentence
-                    else:
-                        chunks.append({
-                            "chunk_text": current_chunk.strip(),
-                            "metadata": {
-                                "source": pdf_file
-                            }
-                        })
-                        current_chunk = sentence
-
-                if current_chunk:
-                    chunks.append({
-                        "chunk_text": current_chunk.strip(),
+                    to_upsert.append({
+                        "id": id,
+                        "values": vector,
                         "metadata": {
-                            "source": pdf_file
+                            "text": chunk["chunk_text"],        
+                            **chunk.get("metadata", {})
                         }
                     })
 
-            return chunks
-        except Exception as e:
-            logger.error(f"Error generating chunks: {e}")
-            raise e
+                self.index.upsert(
+                    vectors=to_upsert,
+                    namespace=self.NAMESPACE
+                )
+                logger.info(f"Upserted {len(to_upsert)} chunks to Pinecone index '{self.INDEX_NAME}' in namespace '{self.NAMESPACE}'.")
+            except Exception as e:
+                logger.error(f"Error upserting documents: {e}")
+                raise e
 
     def search_similar_chunks(self, query: str, top_k: int = 5) -> list[dict]:
         """Search for similar chunks in Pinecone index"""

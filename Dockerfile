@@ -5,7 +5,7 @@ WORKDIR /app
 COPY requirements.txt .
 
 RUN pip install --no-cache-dir -r requirements.txt
-
+COPY documents ./documents
 COPY main.py .
 COPY service ./service
 COPY utils ./utils

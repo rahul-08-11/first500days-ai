@@ -20,9 +20,7 @@ class AzureOpenAI:
             
         )
         self.deployment_name = os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME")
-
-        self.system_message = "Your are a helpful AI assistant that helps people find information."
-
+        self.system_message = "You are a helpful AI assistant that helps people by assisting with their questions."
         logger.info("AzureOpenAI client initialized.")
 
     def fetch_document(self):
@@ -34,12 +32,12 @@ class AzureOpenAI:
         """
         try:
             from pypdf import PdfReader
-            documents_folder = "documents"
-            pdf_files = [f for f in os.listdir(f"{documents_folder}") if f.endswith(".pdf")]
+            DOCUMENTS_DIR =  "documents"
+            pdf_files = [f for f in os.listdir(DOCUMENTS_DIR) if f.endswith(".pdf")]
 
             clean_doc_text = ""
             for pdf_file in pdf_files:
-                pdf_path = os.path.join(f"{documents_folder}", pdf_file)
+                pdf_path = os.path.join(DOCUMENTS_DIR, pdf_file)
                 reader = PdfReader(pdf_path)
 
                 raw_text = ""
@@ -108,47 +106,6 @@ class AzureOpenAI:
             logger.error(f"Error building context: {e}")
             raise e
 
-    def send_tool_msg(self, original_prompt: str, tool_messages : list, tool_calls):
-        
-        """
-        Send the tool messages to the follow-up ask model and return the final response.
-
-        Args:
-            original_prompt (str): The original prompt from the user.
-            tool_messages (list): A list of tool messages to send to the follow-up ask model.
-            tool_calls (dict): A dictionary containing the tool calls to append to the assistant message.
-
-        Returns:
-            str: The final response from the follow-up ask model.
-        """
-        try:
-            messages=[
-                        SystemMessage(content=self.system_message), 
-                        UserMessage(content=original_prompt)
-                    ]
-            # Append assistant tool call as message
-            messages.append(
-                AssistantMessage(
-                    tool_calls=tool_calls,
-                    content=None
-                )
-            )
-            messages.extend(tool_messages)
-            logger.info("Sending tool messages to follow-up ask model.")
-            # Follow-up ask model to respond with results
-            followup_response = self.model.complete(
-                messages=messages,
-                model=self.deployment_name,
-                temperature=0.7,
-                top_p=1.0,
-            )
-            final_message = followup_response.choices[0].message.content
-
-            return final_message.strip()
-        except Exception as e:
-            logger.error(f"Error sending tool messages: {e}")
-            raise e
-
     def generate_response_v1(self, user_query: str, raw_context: str, memory : list) -> str:
 
         try:
@@ -203,26 +160,47 @@ class AzureOpenAI:
                 ],
                 
             )
+            ## Handle tool calls if any
+            tool_calls = response.choices[0].message.tool_calls
+            if tool_calls:
+                tool_data = {}
+                for tool_call in tool_calls:
+                    if tool_call.function["name"] == "fetch_document":
+                        tool_output = self.fetch_document()
+                        tool_data[tool_call["id"]] = tool_output
 
-            try:
-                tool_calls = response.choices[0].message.tool_calls
-                if tool_calls:
-                    tool_data = {}
-                    for tool_call in tool_calls:
-                        print(tool_call)
-                        if tool_call.function["name"] == "fetch_document":
-                            tool_output = self.fetch_document()
-                            tool_data[tool_call["id"]] = tool_output
+                tool_messages = self.create_tool_msg(tool_data)
+                try:
+                    messages=[
+                                SystemMessage(content=self.system_message), 
+                                UserMessage(content=user_query)
+                            ]
+                    # Append assistant tool call as message
+                    messages.append(
+                        AssistantMessage(
+                            tool_calls=tool_calls,
+                            content=None
+                        )
+                    )
+                    messages.extend(tool_messages)
+                    logger.info("Sending tool messages to follow-up ask model.")
+                    # Follow-up ask model to respond with results
+                    followup_response = self.model.complete(
+                        messages=messages,
+                        model=self.deployment_name,
+                        temperature=0.7,
+                        top_p=1.0,
+                    )
+                    final_message = followup_response.choices[0].message.content
 
-                    tool_messages = self.create_tool_msg(tool_data)
-                    final_response = self.send_tool_msg(user_query, tool_messages, tool_calls)
-                    return final_response
-                else:
-                    ai_response =  response.choices[0].message.content.strip()
-                    return ai_response
-            except Exception as e:
-                logger.error(f"Error processing tool calls in generate_response_v0: {e} ")
-                raise e
+                except Exception as e:
+                    logger.error(f"Error in follow-up response after tool calls: {e}")
+                    raise e
+            else:
+                final_message = response.choices[0].message.content
+
+            return final_message.strip()
+        
         except Exception as e:
             logger.error(f"Error generating response v0: {e}")
             raise e

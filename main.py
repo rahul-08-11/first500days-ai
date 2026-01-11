@@ -3,7 +3,7 @@ from utils.helpers import setup_logging
 setup_logging() ## set logging configuration
 from dotenv import load_dotenv
 load_dotenv()
-from service.rag import RAGClient
+from service.pinecone import PineconeClient
 from service.memory import SessionMemory
 from service.azure_openai import AzureOpenAI
 from pydantic import BaseModel
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 app = fastapi.FastAPI()
 
 ## Service initializations
-rag_client = RAGClient()
+rag_client = PineconeClient()
 session_memory = SessionMemory()
 azure_openai = AzureOpenAI()
 logger.info("FastAPI app and services initialized.")
